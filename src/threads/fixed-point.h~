@@ -1,0 +1,123 @@
+#ifndef THREADS_FIXED_POINT_H
+#define THREADS_FIXED_POINT_H
+
+struct fixed_point 
+{
+  /* In full integer format, 16384 and above is full numbers, 
+     below is for decimal portion */
+
+  bool sign_bit;
+  int integer_part;
+  int decimal_part;
+}
+
+/* decimal part mask */
+int mask = 16383;
+
+/* fixed-point conversion value 
+   f = 2^q, we are using f.q = 17.14 */
+int f = 2^14;
+
+/* Helper Functions */
+struct fixed_point convert_to_fp_helper(int64_t value)
+{
+  int64_t tracker = value;
+
+  struct fixed_point fp_tracker;
+
+  /* Set sign_bit */
+  if(value >= 0) 
+  {
+    fp_tracker.sign_bit = false;
+  }
+  else
+  {
+    fp_tracker.sign_bit = true;
+  }
+
+  /* Set decimal_part */
+  fp_tracker.decimal_part = tracker % mask;
+
+  /* Set integer_part */
+  fp_tracker.integer_part = (tracker - fp_tracker.decimal_part) / mask;
+
+
+}
+
+
+/* Convert n to a fixed point */
+struct fixed_point convert_to_fp(int n)
+{
+  return n * f;
+}
+
+/* Convert x to integer (rounding toward zero) */
+int convert_to_int_round_zero(struct fixed_point x)
+{
+  return x / f;
+}
+
+/* Convert x to integer (rounding to nearest) */
+int convert_to_int_round_near(struct fixed_point x)
+{
+  if( x >= 0 ) 
+  {
+    return ( x + f / 2 ) / f;
+  }
+  else 
+  {
+    return ( x - f / 2 ) / f;
+  }
+}
+
+/* Add x + y */
+struct fixed_point add_fp(struct fixed_point x, struct fixed_point y) 
+{
+  return x + y;
+}
+
+/* Subtract y from x */
+struct fixed_point subtract_fp(struct fixed_point x, struct fixed_point y)
+{
+  return x - y;
+}
+
+
+/* Add x and n */
+struct fixed_point add_fp_int(struct fixed_point x, int n)
+{
+  return x + n * f;
+}
+
+
+/* Subtract n from x */
+struct fixed_point subtract_fp_int(struct fixed_point x, int n)
+{
+  return x - n * f;
+}
+
+/* Multiply x by y */
+struct fixed_point multiply_fp(struct fixed_point x, struct fixed_point y)
+{
+  return ((int64_t)x) * f / y;;
+}
+
+/* Multiply x by n */
+struct fixed_point multiply_fp_int(struct fixed_point x, int n)
+{
+  return x * n;
+}
+
+/* Divide x by y */
+struct fixed_point divide_fp(struct fixed_point x, struct fixed_point y)
+{
+  return ((int64_t)x) * f / y;
+} 
+
+/* Divide x by n */
+struct fixed_point divide_fp_int(struct fixed_point x, int n)
+{
+  return x / n;
+}
+
+#endif /* threads/fixed-point.h */
