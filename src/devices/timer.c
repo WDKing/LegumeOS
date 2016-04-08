@@ -20,6 +20,9 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+/* Lists for the threads awaiting a semaphore wakeup call */
+static struct list sleeping_threads;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -29,6 +32,10 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+/* Additional methods */
+bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
+                                 const struct list_elem *second_list_elem,
+                                 void *aux);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -37,6 +44,9 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+
+  /* Initialize the necessary sleeping_threads list */
+  list_init(&sleeping_threads);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,11 +99,36 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+//printf("timer_sleep: enter.\n"); // TODO
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  
+
+  /* TODO */
+
+  struct thread *curr_t = thread_current();
+
+//printf("timer_sleep:: name: %s, start:  %"PRId64", ticks:  %"PRId64"\n",curr_t->name,start, ticks); //TODO
+
+
+  /* Calculate absolute wakeup time and insert into thread information */
+  curr_t->wakeup_ticks = start + ticks; 
+
+  /* Initialize semaphore */
+  sema_init( &curr_t->sleeping_sema, 0 );
+
+
+  /* Add to sleeping_threads */
+  list_insert_ordered (&sleeping_threads, &(curr_t->time_elem), &compare_wakeup_ticks, NULL);
+
+
+  /* Call sema down to put thread to sleep */
+  sema_down( &curr_t->sleeping_sema );
+
+
+//printf("Timer_sleep: exit.\n"); // TODO
+  
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -170,8 +205,39 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+//printf("timer_interrupt: enter.  Ticks: %"PRId64" \n", ticks); // TODO
   ticks++;
+
+
+
+/** TODO 
+  If Timer elapsed of the first thread matches the number of timer ticks that the thread would sleep for, then wake it.*/
+  if(!list_empty(&sleeping_threads))
+    {
+    // TODO struct list_elem first_sleeping_elem = list_front(&sleeping_threads);
+    struct thread *first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
+                                                       // TODO first_sleeping_elem, struct thread, time_elem );
+
+
+//printf("timer_interrupt: first_sleeping_thread, name: %s, wakeup_ticks: %"PRIu64"\n", first_sleeping_thread->name, first_sleeping_thread->wakeup_ticks); // TODO
+    /* Test all threads that have the same wakeup_ticks */
+    while( ticks >= first_sleeping_thread->wakeup_ticks )
+      {
+      sema_up( &first_sleeping_thread->sleeping_sema );
+      list_pop_front( &sleeping_threads );
+
+      /* break out if no more threads in list */
+      if( list_empty(&sleeping_threads) )
+        break;
+      else
+        first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
+      }
+    }
+
+
   thread_tick ();
+
+//printf("timer_interrupt: exit.\n"); // TODO
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -243,4 +309,42 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+
+
+/* list_less_func to compare the wakeup_ticks and priority of the two list elements,
+   if first_list_elem has lower wakeup_ticks, returns true
+   if first_list_elem has higher wakeup_ticks, returns false
+   if first_list_elem and second_list_elem have the same wakeup_ticks, checks priority,
+     if first_list_elem has higher priority returns true, else returns false
+   aligns to a first come first served list, if the two elements have the same wakeup time,
+     and the same priority.
+   */
+bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux UNUSED)
+{
+  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
+  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
+
+//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
+  if( first_thread->wakeup_ticks < second_thread->wakeup_ticks )
+    return true;
+  else
+  {
+    if( first_thread->wakeup_ticks > second_thread->wakeup_ticks )
+    {
+      return false;
+    }
+    /* if( first_thread->wakeup_ticks == second_thread->wakeup_ticks ) */
+    else
+    {
+      if( first_thread->priority > second_thread->priority )
+      {
+        return true;
+      }
+      else
+        return false;
+    }
+  }
 }

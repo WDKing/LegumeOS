@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -100,6 +101,13 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    /* List element for use in timer.c for the timer_sleep() function */
+    struct list_elem time_elem;         /* List element. */
+    /* Semaphore to wakeup the thread in timer.c */
+    struct semaphore sleeping_sema;     /* Semaphore for waking from timer_sleep */
+    /* Int value of the number of ticks that will be used to wakup the thread */
+    int64_t wakeup_ticks;               /* Absolute time to wakup the thread */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -137,5 +145,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+
 
 #endif /* threads/thread.h */
