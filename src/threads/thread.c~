@@ -583,4 +583,18 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-
+/* list_less_func to compare the wakeup_ticks of the two list elements,
+   returns true if the first is less than the second, false if it is greater
+   than or equal to.  This places threads with the same absolute wakeup time 
+   in first come, first served order. */
+bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
+                                 const struct list_elem *second_list_elem,
+                                 void *aux)
+{
+  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
+  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
+  if( first_thread->wakeup_ticks < second_thread->wakeup_ticks )
+    return true;
+  else
+    return false;
+}
