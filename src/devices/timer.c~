@@ -220,13 +220,11 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
 
 //printf("timer_interrupt: first_sleeping_thread, name: %s, wakeup_ticks: %"PRIu64"\n", first_sleeping_thread->name, first_sleeping_thread->wakeup_ticks); // TODO
-    /* Test all threads that have the same wakeup_ticks */
     while( ticks >= first_sleeping_thread->wakeup_ticks )
       {
       sema_up( &first_sleeping_thread->sleeping_sema );
       list_pop_front( &sleeping_threads );
 
-      /* break out if no more threads in list */
       if( list_empty(&sleeping_threads) )
         break;
       else
