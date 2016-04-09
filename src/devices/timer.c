@@ -32,10 +32,7 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
-/* Additional methods */
-bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
-                                 const struct list_elem *second_list_elem,
-                                 void *aux);
+
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -312,39 +309,4 @@ real_time_delay (int64_t num, int32_t denom)
 }
 
 
-/* list_less_func to compare the wakeup_ticks and priority of the two list elements,
-   if first_list_elem has lower wakeup_ticks, returns true
-   if first_list_elem has higher wakeup_ticks, returns false
-   if first_list_elem and second_list_elem have the same wakeup_ticks, checks priority,
-     if first_list_elem has higher priority returns true, else returns false
-   aligns to a first come first served list, if the two elements have the same wakeup time,
-     and the same priority.
-   */
-bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
-                           const struct list_elem *second_list_elem,
-                           void *aux UNUSED)
-{
-  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
-  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
 
-//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
-  if( first_thread->wakeup_ticks < second_thread->wakeup_ticks )
-    return true;
-  else
-  {
-    if( first_thread->wakeup_ticks > second_thread->wakeup_ticks )
-    {
-      return false;
-    }
-    /* if( first_thread->wakeup_ticks == second_thread->wakeup_ticks ) */
-    else
-    {
-      if( first_thread->priority > second_thread->priority )
-      {
-        return true;
-      }
-      else
-        return false;
-    }
-  }
-}

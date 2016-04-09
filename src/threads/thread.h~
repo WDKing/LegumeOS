@@ -102,12 +102,24 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
+
+    /* Alarm Clock */
     /* List element for use in timer.c for the timer_sleep() function */
     struct list_elem time_elem;         /* List element. */
     /* Semaphore to wakeup the thread in timer.c */
     struct semaphore sleeping_sema;     /* Semaphore for waking from timer_sleep */
     /* Int value of the number of ticks that will be used to wakup the thread */
     int64_t wakeup_ticks;               /* Absolute time to wakup the thread */
+
+    /* Priority Scheduling */
+    /* Value to store the donated priority in priority scheduling */
+    int donated_priority;               /* Donated priority. */
+    /* Value to check how deep in nested priority the current depth is */
+    int depth_of_donation;              /* Depth of current donation */
+    /* Lock this thread is waiting to clear in order to acquire */
+    struct lock *waiting_lock;                  /* Lock to wait for */
+    /* Thread this thread donated to */
+    struct thread donated_thread;       /* Thread donated to */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -138,6 +150,8 @@ void thread_yield (void);
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
+void thread_set_donated_priority (struct thread *don_thread, int new_donated_priority);
+void thread_recall_donated_priority (struct thread *don_thread, int recall_priority);
 int thread_get_priority (void);
 void thread_set_priority (int);
 
@@ -147,8 +161,9 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /* Additional methods */
-static bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
+bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
                                  const struct list_elem *second_list_elem,
                                  void *aux);
+
 
 #endif /* threads/thread.h */
