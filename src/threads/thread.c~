@@ -361,7 +361,7 @@ thread_recall_donated_priority (struct thread *don_thread, int recall_priority)
 void
 thread_set_priority (int new_priority) 
 {
-printf("thread_set_priority: enter. thread: %s, old_priority: %i, new_priority: %i.\n",thread_current()->name, thread_current()->priority, new_priority); //TODO
+//printf("thread_set_priority: enter. thread: %s, old_priority: %i, new_priority: %i.\n",thread_current()->name, thread_current()->priority, new_priority); //TODO
   thread_current ()->priority = new_priority;
   thread_current ()->donated_priority = new_priority;
 

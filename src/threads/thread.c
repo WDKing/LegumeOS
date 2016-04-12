@@ -166,7 +166,7 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-printf("thread_create: enter. name: %s, priority: %i.\n",name,priority); //TODO
+//printf("thread_create: enter. name: %s, priority: %i.\n",name,priority); //TODO
   struct thread *thread_new;
   struct kernel_thread_frame *k_thread_frame;
   struct switch_entry_frame *entry_frame;
@@ -361,7 +361,7 @@ thread_recall_donated_priority (struct thread *don_thread, int recall_priority)
 void
 thread_set_priority (int new_priority) 
 {
-printf("thread_set_priority: enter. thread: %s, old_priority: %i, new_priority: %i.\n",thread_current()->name, thread_current()->priority, new_priority); //TODO
+//printf("thread_set_priority: enter. thread: %s, old_priority: %i, new_priority: %i.\n",thread_current()->name, thread_current()->priority, new_priority); //TODO
   thread_current ()->priority = new_priority;
   thread_current ()->donated_priority = new_priority;
 
