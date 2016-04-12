@@ -3,3 +3,5 @@ bochsrc.txt
 bochsout.txt
 
 Make.vars
+*.c~
+*.h~
