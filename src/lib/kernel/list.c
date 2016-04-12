@@ -1,5 +1,6 @@
 #include "list.h"
 #include "../debug.h"
+#include "threads/thread.h"
 
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
@@ -209,6 +210,7 @@ void
 list_push_front (struct list *list, struct list_elem *elem)
 {
   list_insert (list_begin (list), elem);
+  list_sort (list, &compare_priority, NULL);
 }
 
 /* Inserts ELEM at the end of LIST, so that it becomes the
@@ -216,7 +218,9 @@ list_push_front (struct list *list, struct list_elem *elem)
 void
 list_push_back (struct list *list, struct list_elem *elem)
 {
+//printf("list_push_back: enter.\n"); //todo
   list_insert (list_end (list), elem);
+  list_sort (list, &compare_priority, NULL); 
 }
 
 /* Removes ELEM from its list and returns the element that
@@ -404,6 +408,7 @@ inplace_merge (struct list_elem *a0, struct list_elem *a1b0,
 void
 list_sort (struct list *list, list_less_func *less, void *aux)
 {
+//printf("list_sort: enter.\n"); //TODO
   size_t output_run_cnt;        /* Number of runs output in current pass. */
 
   ASSERT (list != NULL);
@@ -521,4 +526,25 @@ list_min (struct list *list, list_less_func *less, void *aux)
           min = e; 
     }
   return min;
+}
+
+/* list_less_func to compare the priority of the two list elements,
+   if first_list_elem has higher priority, returns true
+   if first_list_elem has lower or equal priority, returns false
+   aligns to a first come first served list, if the two elements have the same priority.
+   */
+bool compare_priority (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux UNUSED)
+{
+  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
+  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
+
+//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
+  if( first_thread->priority > second_thread->priority )
+    return true;
+  else
+  {
+    return false;
+  }
 }
