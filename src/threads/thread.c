@@ -59,6 +59,9 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+/* The load average of the system */
+int load_avg;
+
 static void kernel_thread (thread_func *, void *aux);
 
 static void idle (void *aux UNUSED);
@@ -98,6 +101,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+  load_avg = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -166,40 +171,41 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-  struct thread *t;
-  struct kernel_thread_frame *kf;
-  struct switch_entry_frame *ef;
-  struct switch_threads_frame *sf;
+//printf("thread_create: enter. name: %s, priority: %i.\n",name,priority); //TODO
+  struct thread *thread_new;
+  struct kernel_thread_frame *k_thread_frame;
+  struct switch_entry_frame *entry_frame;
+  struct switch_threads_frame *switch_frame;
   tid_t tid;
 
   ASSERT (function != NULL);
 
   /* Allocate thread. */
-  t = palloc_get_page (PAL_ZERO);
-  if (t == NULL)
+  thread_new = palloc_get_page (PAL_ZERO);
+  if (thread_new == NULL)
     return TID_ERROR;
 
   /* Initialize thread. */
-  init_thread (t, name, priority);
-  tid = t->tid = allocate_tid ();
+  init_thread (thread_new, name, priority);
+  tid = thread_new->tid = allocate_tid ();
 
   /* Stack frame for kernel_thread(). */
-  kf = alloc_frame (t, sizeof *kf);
-  kf->eip = NULL;
-  kf->function = function;
-  kf->aux = aux;
+  k_thread_frame = alloc_frame (thread_new, sizeof *k_thread_frame);
+  k_thread_frame->eip = NULL;
+  k_thread_frame->function = function;
+  k_thread_frame->aux = aux;
 
   /* Stack frame for switch_entry(). */
-  ef = alloc_frame (t, sizeof *ef);
-  ef->eip = (void (*) (void)) kernel_thread;
+  entry_frame = alloc_frame (thread_new, sizeof *entry_frame);
+  entry_frame->eip = (void (*) (void)) kernel_thread;
 
   /* Stack frame for switch_threads(). */
-  sf = alloc_frame (t, sizeof *sf);
-  sf->eip = switch_entry;
-  sf->ebp = 0;
+  switch_frame = alloc_frame (thread_new, sizeof *switch_frame);
+  switch_frame->eip = switch_entry;
+  switch_frame->ebp = 0;
 
   /* Add to run queue. */
-  thread_unblock (t);
+  thread_unblock (thread_new);
 
   return tid;
 }
@@ -225,7 +231,7 @@ thread_block (void)
    make the running thread ready.)
 
    This function does not preempt the running thread.  This can
-   be important: if the caller had disabled interrupts itself,
+   be important: if the caler had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
 void
@@ -237,7 +243,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem, compare_priority, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -255,6 +261,7 @@ thread_name (void)
 struct thread *
 thread_current (void) 
 {
+//printf("thread_current: enter.\n"); //TODO
   struct thread *t = running_thread ();
   
   /* Make sure T is really a thread.
@@ -308,7 +315,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered (&ready_list, &cur->elem, &compare_priority, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -331,18 +338,53 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+/* Sets the current thread's donated_priority to NEW_DONATED_PRIORITY
+   Assumes that the depth of priority has already been determined to 
+   be within acceptable levels. */
+void
+thread_set_donated_priority (struct thread *don_thread, int new_donated_priority)
+{
+  if( new_donated_priority > don_thread->donated_priority )
+  {
+    don_thread->donated_priority = new_donated_priority;
+  }
+}
+
+/* Sets the current thread's donated_priority back to previous priority */
+void
+thread_recall_donated_priority (struct thread *don_thread, int recall_priority)
+{
+  /* Check if the priority being recalled is the priority of the thread.
+     Accomodates multiple donations, and recalls only the current value */
+  if( recall_priority == don_thread->donated_priority )
+  { 
+    don_thread->donated_priority = don_thread->priority;
+  }
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
 {
+//printf("thread_set_priority: enter. thread: %s, old_priority: %i, new_priority: %i.\n",thread_current()->name, thread_current()->priority, new_priority); //TODO
   thread_current ()->priority = new_priority;
+  thread_current ()->donated_priority = new_priority;
+
+  if( !list_empty(&ready_list) )
+  {
+    if( thread_current()->priority < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
+    {
+      thread_yield();
+    }
+  }
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+//printf("thread_get_priority: enter. thread: %s, priority: %i.\n",thread_current()->name, thread_current()->donated_priority);
+  return thread_current ()->donated_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -356,8 +398,7 @@ thread_set_nice (int nice UNUSED)
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current()->thread_nice;
 }
 
 /* Returns 100 times the system load average. */
@@ -462,7 +503,10 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->donated_priority = priority;
   t->magic = THREAD_MAGIC;
+  t->depth_of_donation = 0;
+  t->thread_nice = 0;  // TODO - make it inherit from parent thread
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
@@ -582,3 +626,44 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+
+/* list_less_func to compare the wakeup_ticks and priority of the two list elements,
+   if first_list_elem has lower wakeup_ticks, returns true
+   if first_list_elem has higher wakeup_ticks, returns false
+   if first_list_elem and second_list_elem have the same wakeup_ticks, checks priority,
+     if first_list_elem has higher priority returns true, else returns false
+   aligns to a first come first served list, if the two elements have the same wakeup time,
+     and the same priority.
+   */
+bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux UNUSED)
+{
+  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
+  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
+
+//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
+  if( first_thread->wakeup_ticks < second_thread->wakeup_ticks )
+    return true;
+  else
+  {
+    if( first_thread->wakeup_ticks > second_thread->wakeup_ticks )
+    {
+      return false;
+    }
+    /* if( first_thread->wakeup_ticks == second_thread->wakeup_ticks ) */
+    else
+    {
+      if( first_thread->priority > second_thread->priority )
+      {
+        return true;
+      }
+      else
+        return false;
+    }
+  }
+}
+
+
