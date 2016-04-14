@@ -139,7 +139,7 @@ thread_tick (void)
   {
     /* Every fourth tick, recalculate the priority of every thread in the ready queue
        priority = PRI_MAX - (recent_cpu_time / 4) - (thread_nice * 2) */
-
+    
     /* every single inturrupt, increment the recent_cpu_time value of the running thread.
        But not if it's the idle thread. 
        recent_cpu_time++   */
