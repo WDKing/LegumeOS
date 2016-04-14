@@ -383,6 +383,7 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
+<<<<<<< HEAD
 //printf("thread_get_priority: enter. thread: %s, priority: %i.\n",thread_current()->name, thread_current()->donated_priority);
   return thread_current ()->donated_priority;
 }
