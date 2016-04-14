@@ -180,7 +180,7 @@ thread_tick (void)
 
    //       updating_thread->recent_cpu_time = add_fp_int( 
    //                     multiply_fp( coefficient_of_recent_cpu, updating_thread->recent_cpu_time ),
-                                                        updating_thread->thread_nice );
+   //                                                     updating_thread->thread_nice );
    //    }//End for - through all_list, updating recent_cpu_time on each
 
    // }//End if - code every second
