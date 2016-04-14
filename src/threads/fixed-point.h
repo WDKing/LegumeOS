@@ -1,11 +1,11 @@
 //#include <stdint.h>
-//#ifndef THREADS_FIXED_POINT_H
-//#define THREADS_FIXED_POINT_H
+#ifndef THREADS_FIXED_POINT_H
+#define THREADS_FIXED_POINT_H
 
-//#define f 16384
+#define f 16384
 
 /* Conversions */
-int convert_to_fp(int x);
+int convert_to_fp(int n);
 int convert_to_int_round_zero(int x);
 int convert_to_int_round_nearest(int x);
 
@@ -14,8 +14,8 @@ int add_fp(int x, int y);
 int add_fp_int(int x, int n);
 
 /* Subtraction */
-int subtract_fp(int x, int y);
-int subtract_fp_int(int x, int n);
+static int subtract_fp(int x, int y);
+static int subtract_fp_int(int x, int n);
 
 /* Multiplication */
 int multiply_fp(int x, int y);
@@ -29,12 +29,12 @@ int divide_fp_int(int x, int n);
 
 /* fixed-point conversion value 
    f = 2^q, we are using f.q = 17.14 */
-int f = 16384; /* 16384 = 2^14; */
+//int f = 16384; /* 16384 = 2^14; */
 
-/* Convert x to a fixed point */
-int convert_to_fp(int x)
+/* Convert n to a fixed point */
+int convert_to_fp(int n)
 {
-  return x * f;
+  return n * f;
 }
 
 /* Convert x to integer (rounding toward zero) */

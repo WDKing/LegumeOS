@@ -176,6 +176,6 @@ bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
 
 bool compare_priority (const struct list_elem *first_list_elem,
                            const struct list_elem *second_list_elem,
-                           void *aux);
+                           void *aux UNUSED);
 
 #endif /* threads/thread.h */

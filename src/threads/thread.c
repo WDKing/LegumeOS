@@ -12,6 +12,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "fixed-point.h"
+//#include "threads/fixed-point.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -700,8 +701,8 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
    aligns to a first come first served list, if the two elements have the same wakeup time,
      and the same priority.
    */
-bool compare_wakeup_ticks (struct list_elem *first_list_elem,
-                           struct list_elem *second_list_elem,
+bool compare_priority (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
                            void *aux UNUSED)
 {
   struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
@@ -743,8 +744,6 @@ bool compare_priority (const struct list_elem *first_list_elem,
   if( first_thread->priority > second_thread->priority )
     return true;
   else
-  {
     return false;
-  }
 }
 
