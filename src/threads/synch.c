@@ -63,7 +63,6 @@ sema_init (struct semaphore *sema, unsigned value)
 void
 sema_down (struct semaphore *sema) 
 {
-//printf("sema_down: enter.\n"); //TODO
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
@@ -73,6 +72,7 @@ sema_down (struct semaphore *sema)
   while (sema->value == 0) 
     {
       list_push_back (&sema->waiters, &thread_current ()->elem);
+      list_sort (&sema->waiters, &compare_priority, NULL);
       thread_block ();
     }
   sema->value--;
@@ -197,7 +197,6 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
-//printf("lock_acquire: enter.\n"); //TODO
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
@@ -216,7 +215,6 @@ lock_acquire (struct lock *lock)
         && (lock->holder)->priority < curr_t->priority  
         && curr_t->depth_of_donation < MAX_DONATION_DEPTH )
     {
-//printf("lock_acquire: within if statement.\n");  //TODO
       curr_t->depth_of_donation++;
 
       thread_donate_priority_chain( lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
@@ -343,6 +341,7 @@ cond_wait (struct condition *cond, struct lock *lock)
   
   sema_init (&waiter.semaphore, 0);
   list_push_back (&cond->waiters, &waiter.elem);
+  list_sort (&cond->waiters, &compare_priority, NULL);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);

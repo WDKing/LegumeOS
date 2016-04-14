@@ -124,6 +124,8 @@ struct thread
     /* Multi level Feedback Queue Scheduler */
    /* Nice value for calculating if thread will be willing to give up cpu time */
    int thread_nice;  /* 0, no change.   positive, decreases priority. ... */
+   /* Amount of CPU time the thread has received recently */
+   int recent_cpu_time; 
   };
 
 /* If false (default), use round-robin scheduler.
@@ -132,7 +134,7 @@ struct thread
 extern bool thread_mlfqs;
 /* Value estimating the average number of threads ready to run 
    over the past minute*/
-int load_avg;
+//int load_avg;
 
 void thread_init (void);
 void thread_start (void);
@@ -172,5 +174,8 @@ bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
                                  const struct list_elem *second_list_elem,
                                  void *aux);
 
+bool compare_priority (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux);
 
 #endif /* threads/thread.h */
