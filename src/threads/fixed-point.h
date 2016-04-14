@@ -7,7 +7,7 @@
 /* Conversions */
 int convert_to_fp(int x);
 int convert_to_int_round_zero(int x);
-int convert_to_int_round_nearest(int x)
+int convert_to_int_round_nearest(int x);
 
 /* Addition */
 int add_fp(int x, int y);
