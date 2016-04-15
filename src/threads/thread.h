@@ -168,6 +168,8 @@ int thread_get_load_avg (void);
 bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
                                  const struct list_elem *second_list_elem,
                                  void *aux);
-
+bool compare_priority (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux);
 
 #endif /* threads/thread.h */

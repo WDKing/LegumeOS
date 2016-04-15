@@ -666,4 +666,23 @@ bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
   }
 }
 
+/* list_less_func to compare the priority of the two list elements,
+   if first_list_elem has higher priority, returns true
+   if first_list_elem has lower or equal priority, returns false
+   aligns to a first come first served list, if the two elements have the same priority.
+   */
+bool compare_priority (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux UNUSED)
+{
+  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
+  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
 
+//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
+  if( first_thread->priority > second_thread->priority )
+    return true;
+  else
+  {
+    return false;
+  }
+}
