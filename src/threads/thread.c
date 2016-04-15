@@ -180,7 +180,7 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
-//printf("thread_create: enter. name: %s, priority: %i.\n",name,priority); //TODO
+printf("thread_create: enter. name: %s, priority: %i.\n",name,priority); //TODO
   struct thread *thread_new;
   struct kernel_thread_frame *k_thread_frame;
   struct switch_entry_frame *entry_frame;
@@ -216,13 +216,10 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (thread_new);
 
-
-  if(thread_get_priority() < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
+  if( thread_get_priority() < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
   {  
     thread_yield();
   }
-
-
 
   return tid;
 }
@@ -254,6 +251,7 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
+printf("thread_unblock.\n"); //TODO
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
@@ -708,7 +706,7 @@ bool compare_priority (const struct list_elem *first_list_elem,
   struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
   struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
 
-//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
+//printf("compare_wakeup_ticks: first: %s-%i, second: %s-%i.... \n",first_thread->name,first_thread->priority,second_thread->name,second_thread->priority); //TODO
   if( first_thread->priority > second_thread->priority )
     return true;
   else
