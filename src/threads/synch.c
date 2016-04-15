@@ -219,11 +219,11 @@ lock_acquire (struct lock *lock)
 //printf("lock_acquire: within if statement.\n");  //TODO
       curr_t->depth_of_donation++;
 
-      thread_donate_priority_chain( lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
+      thread_donate_priority_chain( thread_current(), lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
 
       sema_down(&lock->semaphore);
 
-      thread_recall_priority_chain( lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
+      thread_recall_priority_chain( thread_current(), lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
       
       /* When sema_up called, continue. */
       lock->holder = curr_t;
@@ -385,30 +385,63 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 }
 
 /* Nested donation of priority handling */
-void 
-thread_donate_priority_chain( struct thread *donating_to, int donated_priority, int donated_depth )
-{
-  if( donating_to->waiting_lock != NULL && donated_depth <= MAX_DONATION_DEPTH )
+void thread_donate_priority_chain( struct thread *donating_from, struct thread *donating_to, int donated_priority, int donated_depth )
+{ 
+  enum intr_level old_level;
+  struct thread *high_priority_thread = donating_from;
+  struct thread *low_priority_thread = donating_to;
+  int donation_depth = donated_depth;
+
+
+  old_level = intr_disable ();
+
+  while( low_priority_thread->waiting_lock != NULL && donation_depth <= MAX_DONATION_DEPTH )
   {
-    donating_to->depth_of_donation = donated_depth;
-    donating_to->donated_thread = (donating_to->waiting_lock)->holder;
-    thread_set_donated_priority( donating_to, donated_priority );
-    thread_donate_priority_chain( (donating_to->waiting_lock)->holder, donated_priority, donated_depth+1 );
+//printf("donate_priority_chain: high: %s, priority: %u, low: %s, priority: %u.\n",high_priority_thread->name,high_priority_thread->donated_priority,low_priority_thread->name,low_priority_thread->donated_priority); //TODO
+
+    /* Check to see if you are trying to donate to a lower priority thread */
+    if( low_priority_thread->donated_priority < donated_priority)
+    {
+      low_priority_thread->donated_priority = donated_priority;
+      high_priority_thread->donated_thread = low_priority_thread;
+    }
+    else
+    {
+      break;
+    }
+
+    high_priority_thread = low_priority_thread;
+    low_priority_thread = (low_priority_thread->waiting_lock)->holder;
+
+    donation_depth++;
   }
+
+  intr_set_level (old_level);
 }
 
 /* To recall priorities through nested priorities */
-void thread_recall_priority_chain( struct thread *donated_to, int recall_priority, int recall_depth )
+void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth )
 {
-  if( donated_to->donated_thread != NULL && donated_to->donated_priority == recall_priority && recall_depth < MAX_DONATION_DEPTH ) 
+  enum intr_level old_level;
+  struct thread *high_priority_thread = donating_from;
+  struct thread *low_priority_thread = donated_to;
+  struct thread *temp_thread;  /* Facilitate cleanup as traveling through donation pathway */
+  int track_depth = recall_depth;
+
+  old_level = intr_disable ();
+
+  while( low_priority_thread->donated_thread != NULL && low_priority_thread->donated_priority == recall_priority && recall_depth < MAX_DONATION_DEPTH ) 
   {
-    thread_recall_priority_chain( donated_to->donated_thread, recall_priority, recall_depth+1 );
-    thread_recall_donated_priority( donated_to, recall_priority );
-    donated_to->donated_thread = NULL;
-    donated_to->depth_of_donation = 0;
+    low_priority_thread->donated_priority = low_priority_thread->priority;
+    low_priority_thread->depth_of_donation = 0;
+
+    temp_thread = high_priority_thread->donated_thread;
+    high_priority_thread->donated_thread = NULL;
+    high_priority_thread = temp_thread;
+    low_priority_thread = high_priority_thread->donated_thread;
+
+    track_depth++;
   }
-  else
-  {
-    thread_recall_donated_priority( donated_to, recall_priority );
-  }
+
+  intr_set_level (old_level);
 }
