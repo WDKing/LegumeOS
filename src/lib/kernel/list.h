@@ -178,7 +178,5 @@ void list_unique (struct list *, struct list *duplicates,
 struct list_elem *list_max (struct list *, list_less_func *, void *aux);
 struct list_elem *list_min (struct list *, list_less_func *, void *aux);
 
-bool compare_priority (const struct list_elem *first_list_elem,
-                           const struct list_elem *second_list_elem,
-                           void *aux);
+
 #endif /* lib/kernel/list.h */
