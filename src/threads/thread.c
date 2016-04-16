@@ -210,7 +210,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (thread_new);
-printf("thread_create. p: %u, running: %s.\n",priority,thread_current()->name); //TODO
+//printf("thread_create. p: %u, running: %s.\n",priority,thread_current()->name); //TODO
   /* Check to see if the running thread is higher priority than current thread. */
   if( priority > thread_get_priority() )
   {
@@ -247,7 +247,7 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
-printf("thread_unblock: %s. P:%u\n",t->name,t->priority); //TODO
+//printf("thread_unblock: %s. P:%u\n",t->name,t->priority); //TODO
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
@@ -324,7 +324,7 @@ thread_yield (void)
   
   ASSERT (!intr_context ());
 
-printf("thread_yield.\n");
+//printf("thread_yield.\n");
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_insert_ordered (&ready_list, &cur->elem, &compare_priority, NULL);
@@ -382,13 +382,7 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
   thread_current ()->donated_priority = new_priority;
 
-  if( !list_empty(&ready_list) )
-  {
-    if( thread_current()->priority < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
-    {
-      thread_yield();
-    }
-  }
+  priority_check_running_vs_ready();
 }
 
 /* Returns the current thread's priority. */
@@ -707,17 +701,22 @@ void thread_donate_priority_chain( struct thread *donating_from, struct thread *
   enum intr_level old_level;
   struct thread *high_priority_thread = donating_from;
   struct thread *low_priority_thread = donating_to;
-  int donation_depth = donated_depth;
+  int donation_depth UNUSED = donated_depth;
 
-printf("donate_priority_chain: high: %s, priority: %u, low: %s, priority: %u.\n",high_priority_thread->name,high_priority_thread->donated_priority,low_priority_thread->name,low_priority_thread->donated_priority); //TODO
+//printf("donate_priority_chain: high: %s, priority: %u, low: %s, priority: %u.\n",high_priority_thread->name,high_priority_thread->donated_priority,low_priority_thread->name,low_priority_thread->donated_priority); //TODO
 
   old_level = intr_disable ();
 
+  if( low_priority_thread->donated_priority < donated_priority )
+  {
+    low_priority_thread->donated_priority = donated_priority;
+    high_priority_thread->donated_thread = low_priority_thread;
+  }
 
 // if the high is waiting on the low, but the low is not waiting, then low_priority_thread->waiting_lock != NULL doesn't work TODO
 
 /*TODO  while( low_priority_thread->waiting_lock != NULL && donation_depth <= MAX_DONATION_DEPTH )
-  {
+  {  
 printf("donate_priority_chain: while loop.\n");
 
     /* Check to see if you are trying to donate to a lower priority thread */
@@ -742,16 +741,18 @@ printf("donate_priority_chain: while loop.\n");
 }
 
 /* To recall priorities through nested priorities */
-void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth )
+void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct thread *donated_to, int recall_priority UNUSED, int recall_depth UNUSED)
 {
   enum intr_level old_level;
-  struct thread *high_priority_thread = donating_from;
+  //struct thread *high_priority_thread = donating_from;
   struct thread *low_priority_thread = donated_to;
-  struct thread *temp_thread;  /* Facilitate cleanup as traveling through donation pathway */
-  int track_depth = recall_depth;
+  //struct thread *temp_thread;  /* Facilitate cleanup as traveling through donation pathway */
+  //int track_depth = recall_depth;
 
   old_level = intr_disable ();
 
+  low_priority_thread->donated_priority = low_priority_thread->priority;
+/*
   while( low_priority_thread->donated_thread != NULL && low_priority_thread->donated_priority == recall_priority && track_depth < MAX_DONATION_DEPTH ) 
   {
     low_priority_thread->donated_priority = low_priority_thread->priority;
@@ -764,6 +765,19 @@ void thread_recall_priority_chain( struct thread *donating_from, struct thread *
 
     track_depth++;
   }
-
+*/
   intr_set_level (old_level);
+}
+
+/* To check if the current running thread has a greater than or equal priority to the first thread on the ready queue.
+   Note: must use function in thread.c, since ready_list is in thread.c.  Synch.c was not able to access this queue. */
+void priority_check_running_vs_ready(void)
+{
+  if( !list_empty(&ready_list) )
+  {
+    if( thread_current()->donated_priority < (list_entry(list_front(&ready_list),struct thread, elem)->donated_priority ) )
+    {
+      thread_yield();
+    }
+  }
 }

@@ -174,6 +174,7 @@ bool compare_priority (const struct list_elem *first_list_elem,
 
 /* Priority Donation */
 void thread_donate_priority_chain( struct thread *donating_from, struct thread *donating_to, int donated_priority, int donated_depth );
-void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth );
+void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct thread *donated_to, int recall_priority UNUSED, int recall_depth UNUSED);
+void priority_check_running_vs_ready(void);
 
 #endif /* threads/thread.h */

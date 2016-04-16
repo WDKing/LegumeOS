@@ -116,9 +116,15 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
+  {
+    list_sort(&sema->waiters, &compare_priority, NULL);
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+  }
   sema->value++;
+
+  priority_check_running_vs_ready();
+  
 //TODO Test to see if the current thread should yield
   intr_set_level (old_level);
 }
@@ -195,7 +201,6 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
-//printf("lock_acquire: enter.\n"); //TODO
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
@@ -205,6 +210,7 @@ lock_acquire (struct lock *lock)
 
   enum intr_level old_level = intr_disable();
 
+//printf("lock_acquire: enter. %s\n",thread_current()->name); //TODO
   /* Determine if the scheduler is Advanced Scheduler or 4.4BSD Scheduler */
   if( !thread_mlfqs ) 
   {
@@ -212,18 +218,18 @@ lock_acquire (struct lock *lock)
        current threads priority, and the donation depth is not too great. */
     if( lock_holder != NULL )
     {
-//printf("lock_acquire: within if statement.\n");  //TODO
+printf("lock_acquire: within if statement. I am: %s, %s has my lock, their priority: %u\n",thread_current()->name,(lock->holder)->name,(lock->holder)->donated_priority);  //TODO
       curr_t->depth_of_donation = 0;
 
       thread_donate_priority_chain( thread_current(), lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
-
+printf("lock_acquire: within if statement. Now it is: %u.\n",(lock->holder)->donated_priority); //TODO
       sema_down(&lock->semaphore);
-
+printf("lock_acquire: I woke up: %s.\n",thread_current()->name);  //TODO
       thread_recall_priority_chain( thread_current(), lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
       
       /* When sema_up called, continue. */
       lock->holder = curr_t;
-
+      curr_t->waiting_lock = NULL;
       curr_t->depth_of_donation = 0;
     }
     else
