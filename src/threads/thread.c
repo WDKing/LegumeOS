@@ -59,6 +59,10 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+
+/* Track nested donation depth */
+int const MAX_DONATION_DEPTH = 8;
+
 /* The load average of the system */
 int load_avg;
 
@@ -206,6 +210,12 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (thread_new);
+printf("thread_create. p: %u, running: %s.\n",priority,thread_current()->name); //TODO
+  /* Check to see if the running thread is higher priority than current thread. */
+  if( priority > thread_get_priority() )
+  {
+    thread_yield();
+  }
 
   return tid;
 }
@@ -237,6 +247,7 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
+printf("thread_unblock: %s. P:%u\n",t->name,t->priority); //TODO
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
@@ -313,6 +324,7 @@ thread_yield (void)
   
   ASSERT (!intr_context ());
 
+printf("thread_yield.\n");
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_insert_ordered (&ready_list, &cur->elem, &compare_priority, NULL);
@@ -685,4 +697,73 @@ bool compare_priority (const struct list_elem *first_list_elem,
   {
     return false;
   }
+}
+
+
+/* Nested donation of priority handling */
+void thread_donate_priority_chain( struct thread *donating_from, struct thread *donating_to, int donated_priority, int donated_depth )
+{ 
+
+  enum intr_level old_level;
+  struct thread *high_priority_thread = donating_from;
+  struct thread *low_priority_thread = donating_to;
+  int donation_depth = donated_depth;
+
+printf("donate_priority_chain: high: %s, priority: %u, low: %s, priority: %u.\n",high_priority_thread->name,high_priority_thread->donated_priority,low_priority_thread->name,low_priority_thread->donated_priority); //TODO
+
+  old_level = intr_disable ();
+
+
+// if the high is waiting on the low, but the low is not waiting, then low_priority_thread->waiting_lock != NULL doesn't work TODO
+
+/*TODO  while( low_priority_thread->waiting_lock != NULL && donation_depth <= MAX_DONATION_DEPTH )
+  {
+printf("donate_priority_chain: while loop.\n");
+
+    /* Check to see if you are trying to donate to a lower priority thread */
+/*
+    if( low_priority_thread->donated_priority < donated_priority)
+    {
+      low_priority_thread->donated_priority = donated_priority;
+      high_priority_thread->donated_thread = low_priority_thread;
+    }
+    else
+    {
+      break;
+    }
+
+    high_priority_thread = low_priority_thread;
+    low_priority_thread = (low_priority_thread->waiting_lock)->holder;
+
+    donation_depth++;
+  }*/
+
+  intr_set_level (old_level);
+}
+
+/* To recall priorities through nested priorities */
+void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth )
+{
+  enum intr_level old_level;
+  struct thread *high_priority_thread = donating_from;
+  struct thread *low_priority_thread = donated_to;
+  struct thread *temp_thread;  /* Facilitate cleanup as traveling through donation pathway */
+  int track_depth = recall_depth;
+
+  old_level = intr_disable ();
+
+  while( low_priority_thread->donated_thread != NULL && low_priority_thread->donated_priority == recall_priority && track_depth < MAX_DONATION_DEPTH ) 
+  {
+    low_priority_thread->donated_priority = low_priority_thread->priority;
+    low_priority_thread->depth_of_donation = 0;
+
+    temp_thread = high_priority_thread->donated_thread;
+    high_priority_thread->donated_thread = NULL;
+    high_priority_thread = temp_thread;
+    low_priority_thread = high_priority_thread->donated_thread;
+
+    track_depth++;
+  }
+
+  intr_set_level (old_level);
 }

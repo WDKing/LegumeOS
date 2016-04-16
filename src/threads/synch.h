@@ -41,10 +41,6 @@ void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
-/* Priority Donation */
-void thread_donate_priority_chain( struct thread *donating_from, struct thread *donating_to, int donated_priority, int donated_depth );
-void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth );
-
 /* Optimization barrier.
 
    The compiler will not reorder operations across an
