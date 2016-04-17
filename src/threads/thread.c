@@ -65,6 +65,7 @@ int const MAX_DONATION_DEPTH = 8;
 
 /* The load average of the system */
 int load_avg;
+int const INITIAL_LOAD_AVERAGE = 0;
 
 static void kernel_thread (thread_func *, void *aux);
 
@@ -681,14 +682,18 @@ bool compare_priority (const struct list_elem *first_list_elem,
                            const struct list_elem *second_list_elem,
                            void *aux UNUSED)
 {
-  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
-  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
+  struct thread *first_thread = list_entry( first_list_elem, struct thread, elem );
+  struct thread *second_thread = list_entry( second_list_elem, struct thread, elem );
 
-//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
   if( first_thread->priority > second_thread->priority )
+  {
+//printf("compare_priority:, greater first: %s-%i, second: %s-%i\n",first_thread->name,first_thread->priority,second_thread->name,second_thread->priority); //TODO
     return true;
+  }
   else
   {
+
+//printf("compare_priority:, not greater."); //TODO
     return false;
   }
 }
@@ -717,7 +722,7 @@ void thread_donate_priority_chain( struct thread *donating_from, struct thread *
 
 /*TODO  while( low_priority_thread->waiting_lock != NULL && donation_depth <= MAX_DONATION_DEPTH )
   {  
-printf("donate_priority_chain: while loop.\n");
+//printf("donate_priority_chain: while loop.\n");
 
     /* Check to see if you are trying to donate to a lower priority thread */
 /*
@@ -773,8 +778,10 @@ void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct t
    Note: must use function in thread.c, since ready_list is in thread.c.  Synch.c was not able to access this queue. */
 void priority_check_running_vs_ready(void)
 {
+
   if( !list_empty(&ready_list) )
   {
+//printf("priority_check. %s, %s.\n", thread_current()->name, (list_entry(list_front(&ready_list),struct thread, elem)->name) ); //TODO
     if( thread_current()->donated_priority < (list_entry(list_front(&ready_list),struct thread, elem)->donated_priority ) )
     {
       thread_yield();
