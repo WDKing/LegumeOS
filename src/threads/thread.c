@@ -215,7 +215,7 @@ thread_create (const char *name, int priority,
   /* Check to see if the running thread is higher priority than current thread. */
   if( priority > thread_get_priority() )
   {
-//TESTING    thread_yield();
+    thread_yield();
   }
 
   return tid;
@@ -322,7 +322,7 @@ thread_yield (void)
 {
   struct thread *cur = thread_current ();
   enum intr_level old_level;
-  
+
   ASSERT (!intr_context ());
 
 //printf("thread_yield.\n");
@@ -779,12 +779,16 @@ void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct t
 void priority_check_running_vs_ready(void)
 {
 
+  enum intr_level old_level = intr_disable();
+
   if( !list_empty(&ready_list) )
   {
 //printf("priority_check. %s, %s.\n", thread_current()->name, (list_entry(list_front(&ready_list),struct thread, elem)->name) ); //TODO
     if( thread_current()->donated_priority < (list_entry(list_front(&ready_list),struct thread, elem)->donated_priority ) )
     {
-      thread_yield();
+        thread_yield();
     }
   }
+
+  intr_set_level (old_level);
 }
