@@ -220,14 +220,18 @@ lock_acquire (struct lock *lock)
        current threads priority, and the donation depth is not too great. */
     if( lock_holder != NULL )
     {
+
 //printf("lock_acquire: within if statement. I am: %s, %s has my lock, their priority: %u\n",thread_current()->name,(lock->holder)->name,(lock->holder)->donated_priority);  //TODO
       curr_t->depth_of_donation = 0;
+      curr_t->waiting_lock = lock;
+      curr_t->depth_of_donation++;
 
-      thread_donate_priority_chain( thread_current(), lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
+      thread_donate_priority_chain( curr_t, lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
 //printf("lock_acquire: within if statement. Now it is: %u.\n",(lock->holder)->donated_priority); //TODO
       sema_down(&lock->semaphore);
+
 //printf("lock_acquire: I woke up: %s.\n",thread_current()->name);  //TODO
-      thread_recall_priority_chain( thread_current(), lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
+      thread_recall_priority_chain( curr_t, lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
       
       /* When sema_up called, continue. */
       lock->holder = curr_t;
@@ -282,6 +286,12 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
+
+  if( thread_current()->donated_thread != NULL )
+  {
+    thread_recall_priority_chain(thread_current(),thread_current()->donated_thread,thread_current()->donated_priority,thread_current()->depth_of_donation);
+  } 
+
   sema_up (&lock->semaphore);
 }
 
