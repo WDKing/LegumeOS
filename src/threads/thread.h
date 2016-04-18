@@ -179,10 +179,17 @@ bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
 bool compare_priority (const struct list_elem *first_list_elem,
                            const struct list_elem *second_list_elem,
                            void *aux);
+
+/* Priority Donation */
 void thread_donate_priority_chain( struct thread *donating_from, struct thread *donating_to, int donated_priority, int donated_depth );
+<<<<<<< HEAD
 void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth );
 void priority_check_running_vs_ready(void);
 /* Multi-level Feedback Queue Scheduler */
 int calculate_mlfps_priority(struct thread *priority_t);
+=======
+void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct thread *donated_to, int recall_priority UNUSED, int recall_depth UNUSED);
+void priority_check_running_vs_ready(void);
+>>>>>>> working-priority
 
 #endif /* threads/thread.h */

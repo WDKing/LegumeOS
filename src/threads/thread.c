@@ -61,8 +61,13 @@ static unsigned thread_ticks;   /* # of timer ticks since last yield. */
    Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
+
+/* Track nested donation depth */
+int const MAX_DONATION_DEPTH = 8;
+
 /* The load average of the system */
 int load_avg;
+int const INITIAL_LOAD_AVERAGE = 0;
 
 /* Track nested donation depth */
 int const MAX_DONATION_DEPTH = 8;
@@ -294,9 +299,10 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (thread_new);
+//printf("thread_create. p: %u, running: %s.\n",priority,thread_current()->name); //TODO
 
-  /* Check to see if currently running thread should yield to higher priority */
-  if(thread_get_priority() < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
+  /* Check to see if due to priority, running thread should be yielded */
+  if( priority > thread_get_priority() || thread_get_priority() < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
   {  
     thread_yield();
   }
@@ -331,6 +337,7 @@ thread_block (void)
 void
 thread_unblock (struct thread *t) 
 {
+//printf("thread_unblock: %s. P:%u\n",t->name,t->priority); //TODO
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
@@ -405,9 +412,10 @@ thread_yield (void)
 {
   struct thread *cur = thread_current ();
   enum intr_level old_level;
-  
+
   ASSERT (!intr_context ());
 
+//printf("thread_yield.\n");
   old_level = intr_disable ();
   if (cur != idle_thread) 
     list_insert_ordered (&ready_list, &cur->elem, &compare_priority, NULL);
@@ -475,13 +483,7 @@ thread_set_priority (int new_priority)
     thread_donate_priority_chain( curr_t, curr_t->donated_thread, new_priority, curr_t->depth_of_donation );
   }
   
-  if( !list_empty(&ready_list) )
-  {   
-    if( curr_t->priority < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
-    {
-      thread_yield();
-    }
-  }
+  priority_check_running_vs_ready();
 }
 
 /* Returns the current thread's priority. */
@@ -784,22 +786,27 @@ bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
 }
 
 /* list_less_func to compare the priority of the two list elements,
-   if first_list_elem has lower priority, returns true
-   if first_list_elem has higher or equal priority, returns false
+   if first_list_elem has higher priority, returns true
+   if first_list_elem has lower or equal priority, returns false
+
    aligns to a first come first served list, if the two elements have the same priority.
    */
 bool compare_priority (const struct list_elem *first_list_elem,
                            const struct list_elem *second_list_elem,
                            void *aux UNUSED)
 {
-  struct thread *first_thread = list_entry( first_list_elem, struct thread, time_elem );
-  struct thread *second_thread = list_entry( second_list_elem, struct thread, time_elem );
+  struct thread *first_thread = list_entry( first_list_elem, struct thread, elem );
+  struct thread *second_thread = list_entry( second_list_elem, struct thread, elem );
 
-//printf("compare_wakeup_ticks: first: %s-%"PRId64"-%i, second: %s-%"PRId64"-%i\n",first_thread->name,first_thread->wakeup_ticks,first_thread->priority,second_thread->name,second_thread->wakeup_ticks,second_thread->priority); //TODO
   if( first_thread->priority > second_thread->priority )
+  {
+//printf("compare_priority:, greater first: %s-%i, second: %s-%i\n",first_thread->name,first_thread->priority,second_thread->name,second_thread->priority); //TODO
     return true;
+  }
   else
   {
+
+//printf("compare_priority:, not greater."); //TODO
     return false;
   }
 }
@@ -824,6 +831,11 @@ void thread_donate_priority_chain( struct thread *donating_from, struct thread *
   }
 
 // if the high is waiting on the low, but the low is not waiting, then low_priority_thread->waiting_lock != NULL doesn't work TODO
+
+
+/*TODO  while( low_priority_thread->waiting_lock != NULL && donation_depth <= MAX_DONATION_DEPTH )
+  {  
+//printf("donate_priority_chain: while loop.\n");
 
 /*TODO  while( low_priority_thread->waiting_lock != NULL && donation_depth <= MAX_DONATION_DEPTH )
 //  {  
