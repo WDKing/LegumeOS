@@ -4,7 +4,7 @@
 /* Conversions */
 int convert_to_fp(int n);
 int convert_to_int_round_zero(int x);
-int convert_to_int_round_nearest(int x)
+int convert_to_int_round_nearest(int x);
 
 /* Addition */
 int add_fp(int x, int y);
@@ -22,11 +22,9 @@ int multiply_fp_int(int x, int n);
 int divide_fp(int x, int y);
 int divide_fp_int(int x, int n);
 
-
-
 /* fixed-point conversion value 
    f = 2^q, we are using f.q = 17.14 */
-int f = 2^14;
+int f = 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2;
 
 /* Convert n to a fixed point */
 int convert_to_fp(int n)
@@ -82,7 +80,7 @@ int subtract_fp_int(int x, int n)
 /* Multiply x by y */
 int multiply_fp(int x, int y)
 {
-  return ((int64_t)x) * f / y;;
+  return ((int64_t)x) * y / f;;
 }
 
 /* Multiply x by n */
