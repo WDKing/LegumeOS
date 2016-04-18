@@ -96,18 +96,11 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-//printf("timer_sleep: enter.\n"); // TODO
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  
-
-  /* TODO */
 
   struct thread *curr_t = thread_current();
-
-//printf("timer_sleep:: name: %s, start:  %"PRId64", ticks:  %"PRId64"\n",curr_t->name,start, ticks); //TODO
-
 
   /* Calculate absolute wakeup time and insert into thread information */
   curr_t->wakeup_ticks = start + ticks; 
@@ -115,17 +108,11 @@ timer_sleep (int64_t ticks)
   /* Initialize semaphore */
   sema_init( &curr_t->sleeping_sema, 0 );
 
-
   /* Add to sleeping_threads */
   list_insert_ordered (&sleeping_threads, &(curr_t->time_elem), &compare_wakeup_ticks, NULL);
 
-
   /* Call sema down to put thread to sleep */
   sema_down( &curr_t->sleeping_sema );
-
-
-//printf("Timer_sleep: exit.\n"); // TODO
-  
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -202,21 +189,16 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-//printf("timer_interrupt: enter.  Ticks: %"PRId64" \n", ticks); // TODO
   ticks++;
 
 
-
 /** TODO 
+
   If Timer elapsed of the first thread matches the number of timer ticks that the thread would sleep for, then wake it.*/
   if(!list_empty(&sleeping_threads))
     {
-    // TODO struct list_elem first_sleeping_elem = list_front(&sleeping_threads);
     struct thread *first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
-                                                       // TODO first_sleeping_elem, struct thread, time_elem );
 
-
-//printf("timer_interrupt: first_sleeping_thread, name: %s, wakeup_ticks: %"PRIu64"\n", first_sleeping_thread->name, first_sleeping_thread->wakeup_ticks); // TODO
     /* Test all threads that have the same wakeup_ticks */
     while( ticks >= first_sleeping_thread->wakeup_ticks )
       {
@@ -231,10 +213,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       }
     }
 
-
   thread_tick ();
-
-//printf("timer_interrupt: exit.\n"); // TODO
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
