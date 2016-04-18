@@ -99,26 +99,25 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  
 
-  /* TODO */
-
+  enum intr_level old_level;
   struct thread *curr_t = thread_current();
 
+  old_level = intr_disable ();
   /* Calculate absolute wakeup time and insert into thread information */
   curr_t->wakeup_ticks = start + ticks; 
 
   /* Initialize semaphore */
   sema_init( &curr_t->sleeping_sema, 0 );
 
-
   /* Add to sleeping_threads */
-  list_insert_ordered (&sleeping_threads, &(curr_t->time_elem), &compare_wakeup_ticks, NULL);
-
-
+  list_insert_ordered (&sleeping_threads, &(curr_t->time_elem), 
+                       &compare_wakeup_ticks, NULL);
+  
   /* Call sema down to put thread to sleep */
   sema_down( &curr_t->sleeping_sema );
-  
+
+  intr_set_level (old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -197,20 +196,16 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
 
-
-
-/** TODO 
-  If Timer elapsed of the first thread matches the number of timer ticks that the thread would sleep for, then wake it.*/
+  /* If Timer elapsed of the first thread matches the number of timer ticks 
+     that the thread would sleep for, then wake it. */
   if(!list_empty(&sleeping_threads))
-    {
-    // TODO struct list_elem first_sleeping_elem = list_front(&sleeping_threads);
-    struct thread *first_sleeping_thread = list_entry( 
-                                      list_front(&sleeping_threads), struct thread, time_elem);
-                                       // TODO first_sleeping_elem, struct thread, time_elem );
+  {
+    struct thread *first_sleeping_thread = list_entry(list_front(&sleeping_threads), 
+                                                      struct thread, time_elem);
 
-
+    /* Test all threads that have the same wakeup_ticks */
     while( ticks >= first_sleeping_thread->wakeup_ticks )
-      {
+    {
       sema_up( &first_sleeping_thread->sleeping_sema );
       list_pop_front( &sleeping_threads );
 
@@ -218,13 +213,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
       if( list_empty(&sleeping_threads) )
         break;
       else
-        first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
-      }
+        first_sleeping_thread = list_entry( list_front(&sleeping_threads), 
+                                            struct thread, time_elem);
     }
-
+  }
 
   thread_tick ();
-
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -297,6 +291,5 @@ real_time_delay (int64_t num, int32_t denom)
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
-
 
 
