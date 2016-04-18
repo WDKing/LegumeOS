@@ -191,10 +191,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
 
-
-/** TODO 
-
-  If Timer elapsed of the first thread matches the number of timer ticks that the thread would sleep for, then wake it.*/
+  /* If Timer elapsed of the first thread matches the number of timer ticks that the thread would sleep for, then wake it.*/
   if(!list_empty(&sleeping_threads))
     {
     struct thread *first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
