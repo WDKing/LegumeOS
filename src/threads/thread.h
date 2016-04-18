@@ -25,6 +25,11 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* Thread Niceness */
+#define NICE_MIN -20                    /* Lowest niceness */
+#define NICE_DEFAULT 0                  /* Default niceness */
+#define NICE_MAX 20                     /* Highest niceness */
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -102,7 +107,6 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-
     /* Alarm Clock */
     /* List element for use in timer.c for the timer_sleep() function */
     struct list_elem time_elem;         /* List element. */
@@ -120,6 +124,12 @@ struct thread
     struct lock *waiting_lock;                  /* Lock to wait for */
     /* Thread this thread donated to */
     struct thread *donated_thread;       /* Thread donated to */
+
+    /* Multi-Level Feedback Queue Scheduler */
+    /* Thread's nice value */
+    int thread_nice;
+    /* Thread's recent cpu time */
+    int recent_cpu_time;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -161,9 +171,21 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 /* Additional methods */
+/* Alarm Clock */
 bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
                                  const struct list_elem *second_list_elem,
                                  void *aux);
+/* Priority Scheduler */
+bool compare_priority (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux);
+
+/* Priority Donation */
+void thread_donate_priority_chain( struct thread *donating_from, struct thread *donating_to, int donated_priority, int donated_depth );
+void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth );
+void priority_check_running_vs_ready(void);
+/* Multi-level Feedback Queue Scheduler */
+int calculate_mlfps_priority(struct thread *priority_t);
 
 
 #endif /* threads/thread.h */
