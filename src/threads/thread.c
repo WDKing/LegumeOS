@@ -259,6 +259,9 @@ thread_create (const char *name, int priority,
   struct switch_threads_frame *switch_frame;
   tid_t tid;
 
+  /* Current thread to handle children threads */
+  struct thread *curr_t = thread_current();
+
   ASSERT (function != NULL);
 
   /* Allocate thread. */
@@ -284,6 +287,19 @@ thread_create (const char *name, int priority,
   switch_frame = alloc_frame (thread_new, sizeof *switch_frame);
   switch_frame->eip = switch_entry;
   switch_frame->ebp = 0;
+
+  /* Set child thread nice information */
+  if( thread_mlfqs )
+  {
+    if( curr_t != NULL )
+    {
+      thread_new->thread_nice = curr_t->thread_nice;
+    }
+    else 
+    {
+      thread_new->thread_nice = NICE_DEFAULT;
+    }
+  }
 
   /* Add to run queue. */
   thread_unblock (thread_new);
@@ -427,22 +443,33 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  bool is_greater;
+  bool is_greater = false;
   struct thread *curr_t = thread_current();
  
-//  if( curr_t->priority < new_priority )
-//  {
-//    is_greater = true;
-//  }
+  if(!thread_mlfqs)
+  {
+    if( curr_t->donated_priority < new_priority )
+    {
+      curr_t->donated_priority = new_priority;
+      is_greater = true;
+    }
+ 
+    if( curr_t->priority < new_priority )
+    {
+      curr_t->priority = new_priority;
+      is_greater = true;
+    }
 
-  curr_t->priority = new_priority;
-  curr_t->donated_priority = new_priority;
+    if(is_greater)
+    {
+      if( curr_t->donated_thread )
+      {
+        thread_donate_priority_chain( curr_t, curr_t->donated_thread, new_priority, curr_t->depth_of_donation );
+      }
 
-//  if( is_greater ) {
-//    thread_donate_priority_chain( curr_t, curr_t->donated_thread, new_priority, curr_t->depth_of_donation );
-//  }
-  
-//  priority_check_running_vs_ready();
+      priority_check_running_vs_ready();
+    }
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -769,19 +796,37 @@ void thread_donate_priority_chain( struct thread *donating_from, struct thread *
   enum intr_level old_level;
   struct thread *high_priority_thread = donating_from;
   struct thread *low_priority_thread = donating_to;
-  int donation_depth UNUSED = donated_depth;
+  int donation_depth = donated_depth;
 
   old_level = intr_disable ();
 
-  if( low_priority_thread->donated_priority < donated_priority )
+  while(donated_depth < MAX_DONATION_DEPTH && low_priority_thread != NULL)
   {
-    low_priority_thread->donated_priority = donated_priority;
+    list_insert_ordered(low_priority_thread->doner_list, &high_priority_thread->doner_elem, &compare_priority, NULL);
     high_priority_thread->donated_thread = low_priority_thread;
+
+    if( low_priority_thread->donated_priority < donated_priority )
+    {
+      low_priority_thread->donated_priority = donated_priority;
+    }
+
+    if( low_priority_thread->waiting_lock != NULL )
+    {
+      high_priority_thread = low_priority_thread;
+      low_priority_thread = (low_priority_thread->waiting_lock)->holder;
+    }
+    else
+    {
+      donated_depth = MAX_DONATION_DEPTH;
+    }
+
+    donated_depth++;
   }
 
   intr_set_level (old_level);
 }
 
+// TODO Fix recall, remove the donated thread down the line? and set the priority to the latest doner, if no doners, then set to standard */
 /* To recall priorities through nested priorities */
 void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct thread *donated_to, int recall_priority UNUSED, int recall_depth UNUSED)
 {
@@ -811,7 +856,14 @@ void priority_check_running_vs_ready(void)
   {
     if( thread_current()->donated_priority < (list_entry(list_front(&ready_list),struct thread, elem)->donated_priority ) )
     {
-      thread_yield();
+      if( intr_context() )
+      {
+        intr_yield_on_return();
+      }
+      else
+      {
+        thread_yield();
+      }
     }
   }
 
