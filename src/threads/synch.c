@@ -32,9 +32,6 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
-/* Track nested donation depth */
-int const MAX_DONATION_DEPTH = 8;
-
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -63,16 +60,15 @@ sema_init (struct semaphore *sema, unsigned value)
 void
 sema_down (struct semaphore *sema) 
 {
-  enum intr_level old_level;
+  enum intr_level old_level = intr_disable ();
 
   ASSERT (sema != NULL);
   ASSERT (!intr_context ());
 
-  old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
-      list_sort (&sema->waiters, &compare_priority, NULL);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, 
+                           &compare_priority, NULL);
       thread_block ();
     }
   sema->value--;
@@ -112,16 +108,23 @@ sema_try_down (struct semaphore *sema)
 void
 sema_up (struct semaphore *sema) 
 {
-//printf("sema_up: enter.\n"); //TODO
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
+
+  if (!list_empty (&sema->waiters))
+  {
+    list_sort(&sema->waiters, &compare_priority, NULL);
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+  }
+
   sema->value++;
+
+  priority_check_running_vs_ready();
+
   intr_set_level (old_level);
 }
 
@@ -211,23 +214,23 @@ lock_acquire (struct lock *lock)
   {
     /* Determines if there is a lock holder, if their priority is lower than the 
        current threads priority, and the donation depth is not too great. */
-    if( lock_holder != NULL 
-        && (lock->holder)->priority < curr_t->priority  
-        && curr_t->depth_of_donation < MAX_DONATION_DEPTH )
+    if( lock_holder != NULL )
     {
+      curr_t->depth_of_donation = 0;
+      curr_t->waiting_lock = lock;
       curr_t->depth_of_donation++;
 
-      thread_donate_priority_chain( lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
-
+      thread_donate_priority_chain( curr_t, lock->holder, curr_t->donated_priority, 
+                                    curr_t->depth_of_donation );
       sema_down(&lock->semaphore);
 
-      thread_recall_priority_chain( lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
+      thread_recall_priority_chain( curr_t, lock->holder, curr_t->donated_priority, 
+                                    curr_t->depth_of_donation );
       
       /* When sema_up called, continue. */
       lock->holder = curr_t;
-
-      thread_recall_donated_priority( lock_holder, curr_t->priority );
-      curr_t->depth_of_donation--;
+      curr_t->waiting_lock = NULL;
+      curr_t->depth_of_donation = 0;
     }
     else
     {
@@ -272,11 +275,18 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
-//printf("lock_release: enter.\n"); //TODO
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
   lock->holder = NULL;
+
+  if( thread_current()->donated_thread != NULL )
+  {
+    thread_recall_priority_chain(thread_current(), thread_current()->donated_thread,
+                                 thread_current()->donated_priority, 
+                                 thread_current()->depth_of_donation);
+  }
+
   sema_up (&lock->semaphore);
 }
 
@@ -340,8 +350,9 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+  /* Ensure in order before insertion */
   list_sort (&cond->waiters, &compare_priority, NULL);
+  list_insert_ordered (&cond->waiters, &waiter.elem, &compare_priority, NULL);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -355,7 +366,7 @@ cond_wait (struct condition *cond, struct lock *lock)
    make sense to try to signal a condition variable within an
    interrupt handler. */
 void
-cond_signal (struct condition *cond, struct lock *lock UNUSED) 
+cond_signal (struct condition *cond, struct lock *lock) 
 {
   ASSERT (cond != NULL);
   ASSERT (lock != NULL);
@@ -363,8 +374,11 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
 
   if (!list_empty (&cond->waiters)) 
+  {
+    list_sort(&cond->waiters, &compare_priority, NULL);
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+  }
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -383,31 +397,3 @@ cond_broadcast (struct condition *cond, struct lock *lock)
     cond_signal (cond, lock);
 }
 
-/* Nested donation of priority handling */
-void 
-thread_donate_priority_chain( struct thread *donating_to, int donated_priority, int donated_depth )
-{
-  if( donating_to->waiting_lock != NULL && donated_depth <= MAX_DONATION_DEPTH )
-  {
-    donating_to->depth_of_donation = donated_depth;
-    donating_to->donated_thread = (donating_to->waiting_lock)->holder;
-    thread_set_donated_priority( donating_to, donated_priority );
-    thread_donate_priority_chain( (donating_to->waiting_lock)->holder, donated_priority, donated_depth+1 );
-  }
-}
-
-/* To recall priorities through nested priorities */
-void thread_recall_priority_chain( struct thread *donated_to, int recall_priority, int recall_depth )
-{
-  if( donated_to->donated_thread != NULL && donated_to->donated_priority == recall_priority && recall_depth < MAX_DONATION_DEPTH ) 
-  {
-    thread_recall_priority_chain( donated_to->donated_thread, recall_priority, recall_depth+1 );
-    thread_recall_donated_priority( donated_to, recall_priority );
-    donated_to->donated_thread = NULL;
-    donated_to->depth_of_donation = 0;
-  }
-  else
-  {
-    thread_recall_donated_priority( donated_to, recall_priority );
-  }
-}

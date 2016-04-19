@@ -1,8 +1,5 @@
-//#include <stdint.h>
 #ifndef THREADS_FIXED_POINT_H
 #define THREADS_FIXED_POINT_H
-
-#define f 16384
 
 /* Conversions */
 int convert_to_fp(int n);
@@ -14,8 +11,8 @@ int add_fp(int x, int y);
 int add_fp_int(int x, int n);
 
 /* Subtraction */
-static int subtract_fp(int x, int y);
-static int subtract_fp_int(int x, int n);
+int subtract_fp(int x, int y);
+int subtract_fp_int(int x, int n);
 
 /* Multiplication */
 int multiply_fp(int x, int y);
@@ -25,11 +22,9 @@ int multiply_fp_int(int x, int n);
 int divide_fp(int x, int y);
 int divide_fp_int(int x, int n);
 
-
-
 /* fixed-point conversion value 
    f = 2^q, we are using f.q = 17.14 */
-//int f = 16384; /* 16384 = 2^14; */
+int f = 16384;
 
 /* Convert n to a fixed point */
 int convert_to_fp(int n)
@@ -85,7 +80,7 @@ int subtract_fp_int(int x, int n)
 /* Multiply x by y */
 int multiply_fp(int x, int y)
 {
-  return ((int64_t)x) * f / y;;
+  return ((int64_t)x) * y / f;
 }
 
 /* Multiply x by n */

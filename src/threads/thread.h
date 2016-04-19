@@ -25,6 +25,11 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* Thread Niceness */
+#define NICE_MIN -20                    /* Lowest niceness */
+#define NICE_DEFAULT 0                  /* Default niceness */
+#define NICE_MAX 20                     /* Highest niceness */
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -102,7 +107,6 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-
     /* Alarm Clock */
     /* List element for use in timer.c for the timer_sleep() function */
     struct list_elem time_elem;         /* List element. */
@@ -121,20 +125,17 @@ struct thread
     /* Thread this thread donated to */
     struct thread *donated_thread;       /* Thread donated to */
 
-    /* Multi level Feedback Queue Scheduler */
-   /* Nice value for calculating if thread will be willing to give up cpu time */
-   int thread_nice;  /* 0, no change.   positive, decreases priority. ... */
-   /* Amount of CPU time the thread has received recently */
-   int recent_cpu_time; 
+    /* Multi-Level Feedback Queue Scheduler */
+    /* Thread's nice value */
+    int thread_nice;
+    /* Thread's recent cpu time */
+    int recent_cpu_time;
   };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
-/* Value estimating the average number of threads ready to run 
-   over the past minute*/
-//int load_avg;
 
 void thread_init (void);
 void thread_start (void);
@@ -171,11 +172,21 @@ int thread_get_load_avg (void);
 
 /* Additional methods */
 bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
-                                 const struct list_elem *second_list_elem,
-                                 void *aux);
-
-bool compare_priority (const struct list_elem *first_list_elem,
                            const struct list_elem *second_list_elem,
-                           void *aux UNUSED);
+                           void *aux);
+bool compare_priority (const struct list_elem *first_list_elem,
+                       const struct list_elem *second_list_elem,
+                       void *aux);
+
+/* Priority Donation */
+void thread_donate_priority_chain( struct thread *donating_from, 
+                                   struct thread *donating_to, int donated_priority, 
+                                   int donated_depth );
+void thread_recall_priority_chain( struct thread *donating_from, 
+                                   struct thread *donated_to, 
+                                   int recall_priority, int recall_depth);
+void priority_check_running_vs_ready(void);
+/* Multi-level Feedback Queue Scheduler */
+int calculate_mlfqs_priority(struct thread *priority_t);
 
 #endif /* threads/thread.h */
