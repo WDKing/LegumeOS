@@ -125,9 +125,9 @@ struct thread
     /* Thread this thread donated to */
     struct thread *donated_thread;       /* Thread donated to */
     /* List of threads who have donated to this thread */
-    struct list *doner_list;
-    /* element to be placed on doner_list */
-    struct list_elem doner_elem;
+    struct list *donor_list;
+    /* element to be placed on donor_list */
+    struct list_elem *donor_elem;
 
     /* Multi-Level Feedback Queue Scheduler */
     /* Thread's nice value */

@@ -800,14 +800,22 @@ void thread_donate_priority_chain( struct thread *donating_from, struct thread *
 
   old_level = intr_disable ();
 
-  while(donated_depth < MAX_DONATION_DEPTH && low_priority_thread != NULL)
+  while(donation_depth < MAX_DONATION_DEPTH && low_priority_thread != NULL)
   {
-    list_insert_ordered(low_priority_thread->doner_list, &high_priority_thread->doner_elem, &compare_priority, NULL);
-    high_priority_thread->donated_thread = low_priority_thread;
-
+    if( low_priority_thread->donor_list == NULL )
+    {
+      list_init(low_priority_thread->donor_list);
+    }
+    
     if( low_priority_thread->donated_priority < donated_priority )
     {
+      list_insert_ordered(low_priority_thread->donor_list, high_priority_thread->donor_elem, &compare_priority, NULL);
+      high_priority_thread->donated_thread = low_priority_thread;
       low_priority_thread->donated_priority = donated_priority;
+    }
+    else 
+    {
+      donated_depth = MAX_DONATION_DEPTH;
     }
 
     if( low_priority_thread->waiting_lock != NULL )
@@ -820,28 +828,55 @@ void thread_donate_priority_chain( struct thread *donating_from, struct thread *
       donated_depth = MAX_DONATION_DEPTH;
     }
 
-    donated_depth++;
+    donation_depth++;
   }
 
   intr_set_level (old_level);
 }
 
-// TODO Fix recall, remove the donated thread down the line? and set the priority to the latest doner, if no doners, then set to standard */
+// TODO Fix recall, remove the donated thread down the line? and set the priority to the latest donor, if no donors, then set to standard */
 /* To recall priorities through nested priorities */
 void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct thread *donated_to, int recall_priority UNUSED, int recall_depth UNUSED)
 {
   // Commented parts to facilitate multi-level donation, currently only single level donation. 
   enum intr_level old_level;
-  //struct thread *high_priority_thread = donating_from;
+  struct thread *high_priority_thread = donating_from;
   struct thread *low_priority_thread = donated_to;
-  //struct thread *temp_thread;  /* Facilitate cleanup as traveling through donation pathway */
-  //int track_depth = recall_depth;
+  //struct thread *temp_thread;  /* Facilitate cleanup as traveling through donation pathway */ TODO
+  int track_depth = recall_depth;
 
   old_level = intr_disable ();
 
+  while( track_depth < MAX_DONATION_DEPTH )
+  {
+    if(!list_empty(low_priority_thread->donor_list))
+    {
+      list_remove(high_priority_thread->donor_elem);
+    }
+
+    if(list_empty(low_priority_thread->donor_list))
+    {
+      low_priority_thread->donated_priority = low_priority_thread->priority;
+    }
+
+    if(low_priority_thread->waiting_lock !=  NULL)
+    {
+      high_priority_thread = low_priority_thread;
+      low_priority_thread = (low_priority_thread->waiting_lock)->holder;
+    }
+    else
+    {
+      track_depth = MAX_DONATION_DEPTH;
+    }
+    
+
+    track_depth++;
+  }  
+
+
   low_priority_thread->donated_priority = low_priority_thread->priority;
 
-  intr_set_level (old_level);
+  intr_set_level (old_level); 
 }
 
 
@@ -849,7 +884,6 @@ void thread_recall_priority_chain( struct thread *donating_from UNUSED, struct t
    Note: must use function in thread.c, since ready_list is in thread.c.  Synch.c was not able to access this queue. */
 void priority_check_running_vs_ready(void)
 {
-
   enum intr_level old_level = intr_disable();
 
   if( !list_empty(&ready_list) )
@@ -874,8 +908,7 @@ void priority_check_running_vs_ready(void)
 int calculate_mlfps_priority(struct thread *priority_t)
 {
   int calc_priority;
-  calc_priority = PRI_MAX - convert_to_int_round_nearest( subtract_fp( divide_fp_int( priority_t->recent_cpu_time, 4 ), 
-                                                 multiply_fp_int( priority_t->thread_nice , 2 )  ));
+  calc_priority = PRI_MAX - convert_to_int_round_nearest( subtract_fp( divide_fp_int( priority_t->recent_cpu_time, 4 ), multiply_fp_int( priority_t->thread_nice , 2 )  ));
 
   if ( calc_priority > PRI_MAX )
     calc_priority = PRI_MAX;
@@ -883,5 +916,4 @@ int calculate_mlfps_priority(struct thread *priority_t)
     calc_priority = PRI_MIN;
 
   return calc_priority;
-
 }

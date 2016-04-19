@@ -126,7 +126,6 @@ sema_up (struct semaphore *sema)
   priority_check_running_vs_ready();
   
   intr_set_level (old_level);
-
 }
 
 static void sema_test_helper (void *sema_);
