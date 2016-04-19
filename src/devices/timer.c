@@ -103,16 +103,16 @@ timer_sleep (int64_t ticks)
   struct thread *curr_t = thread_current();
 
   /* Calculate absolute wakeup time and insert into thread information */
-//  curr_t->wakeup_ticks = start + ticks; 
+  curr_t->wakeup_ticks = start + ticks; 
 
   /* Initialize semaphore */
-//  sema_init( &curr_t->sleeping_sema, 0 );
+  sema_init( &curr_t->sleeping_sema, 0 );
 
   /* Add to sleeping_threads */
-//  list_insert_ordered (&sleeping_threads, &(curr_t->time_elem), &compare_wakeup_ticks, NULL);
+  list_insert_ordered (&sleeping_threads, &(curr_t->time_elem), &compare_wakeup_ticks, NULL);
 
   /* Call sema down to put thread to sleep */
-//  sema_down( &curr_t->sleeping_sema );
+  sema_down( &curr_t->sleeping_sema );
 
   // TODO
   ASSERT (intr_get_level () == INTR_ON);
@@ -194,27 +194,27 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
-printf("timer_interrupt.\n"); //TODO
+//printf("timer_interrupt.\n"); //TODO
   ticks++;
 
   /* If Timer elapsed of the first thread matches the number of timer ticks that the thread would sleep for, then wake it.*/
-//  if(!list_empty(&sleeping_threads))
-//    {
-//    struct thread *first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
+  if(!list_empty(&sleeping_threads))
+    {
+    struct thread *first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
 
     /* Test all threads that have the same wakeup_ticks */
-//    while( ticks >= first_sleeping_thread->wakeup_ticks )
-//      {
-//      sema_up( &first_sleeping_thread->sleeping_sema );
-//      list_pop_front( &sleeping_threads );
+    while( ticks >= first_sleeping_thread->wakeup_ticks )
+      {
+      sema_up( &first_sleeping_thread->sleeping_sema );
+      list_pop_front( &sleeping_threads );
 
       /* break out if no more threads in list */
-//      if( list_empty(&sleeping_threads) )
-//        break;
-//      else
-//        first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
-//      }
-//    }
+      if( list_empty(&sleeping_threads) )
+        break;
+      else
+        first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
+      }
+    }
 
   thread_tick ();
 }
