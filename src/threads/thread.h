@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +24,11 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* Thread Niceness */
+#define NICE_MIN -20                    /* Lowest niceness */
+#define NICE_DEFAULT 0                  /* Default niceness */
+#define NICE_MAX 20                     /* Highest niceness */
 
 /* A kernel thread or user process.
 
@@ -100,6 +106,30 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    /* Alarm Clock */
+    /* List element for use in timer.c for the timer_sleep() function */
+    struct list_elem time_elem;         /* List element. */
+    /* Semaphore to wakeup the thread in timer.c */
+    struct semaphore sleeping_sema;     /* Semaphore for waking from timer_sleep */
+    /* Int value of the number of ticks that will be used to wakup the thread */
+    int64_t wakeup_ticks;               /* Absolute time to wakup the thread */
+
+    /* Priority Scheduling */
+    /* Value to store the donated priority in priority scheduling */
+    int donated_priority;               /* Donated priority. */
+    /* Value to check how deep in nested priority the current depth is */
+    int depth_of_donation;              /* Depth of current donation */
+    /* Lock this thread is waiting to clear in order to acquire */
+    struct lock *waiting_lock;                  /* Lock to wait for */
+    /* Thread this thread donated to */
+    struct thread *donated_thread;       /* Thread donated to */
+
+    /* Multi-Level Feedback Queue Scheduler */
+    /* Thread's nice value */
+    int thread_nice;
+    /* Thread's recent cpu time */
+    int recent_cpu_time;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -137,5 +167,23 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* Additional methods */
+/* Alarm Clock */
+bool compare_wakeup_ticks (const struct list_elem *first_list_elem,
+                                 const struct list_elem *second_list_elem,
+                                 void *aux);
+/* Priority Scheduler */
+bool compare_priority (const struct list_elem *first_list_elem,
+                           const struct list_elem *second_list_elem,
+                           void *aux);
+
+/* Priority Donation */
+void thread_donate_priority_chain( struct thread *donating_from, struct thread *donating_to, int donated_priority, int donated_depth );
+void thread_recall_priority_chain( struct thread *donating_from, struct thread *donated_to, int recall_priority, int recall_depth );
+void priority_check_running_vs_ready(void);
+/* Multi-level Feedback Queue Scheduler */
+int calculate_mlfps_priority(struct thread *priority_t);
+
 
 #endif /* threads/thread.h */

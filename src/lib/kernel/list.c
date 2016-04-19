@@ -1,5 +1,6 @@
 #include "list.h"
 #include "../debug.h"
+#include "threads/thread.h"
 
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
@@ -209,6 +210,7 @@ void
 list_push_front (struct list *list, struct list_elem *elem)
 {
   list_insert (list_begin (list), elem);
+  list_sort (list, &compare_priority, NULL);
 }
 
 /* Inserts ELEM at the end of LIST, so that it becomes the
@@ -216,7 +218,9 @@ list_push_front (struct list *list, struct list_elem *elem)
 void
 list_push_back (struct list *list, struct list_elem *elem)
 {
+//printf("list_push_back: enter.\n"); //todo
   list_insert (list_end (list), elem);
+  list_sort (list, &compare_priority, NULL); 
 }
 
 /* Removes ELEM from its list and returns the element that
@@ -280,7 +284,7 @@ struct list_elem *
 list_front (struct list *list)
 {
   ASSERT (!list_empty (list));
-  return list->head.next;
+  return list->head.next; 
 }
 
 /* Returns the back element in LIST.
@@ -404,6 +408,7 @@ inplace_merge (struct list_elem *a0, struct list_elem *a1b0,
 void
 list_sort (struct list *list, list_less_func *less, void *aux)
 {
+//printf("list_sort: enter.\n"); //TODO
   size_t output_run_cnt;        /* Number of runs output in current pass. */
 
   ASSERT (list != NULL);
@@ -522,3 +527,5 @@ list_min (struct list *list, list_less_func *less, void *aux)
     }
   return min;
 }
+
+

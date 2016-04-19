@@ -20,6 +20,9 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+/* Lists for the threads awaiting a semaphore wakeup call */
+static struct list sleeping_threads;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -30,6 +33,7 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -37,6 +41,9 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+
+  /* Initialize the necessary sleeping_threads list */
+  list_init(&sleeping_threads);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -91,6 +98,23 @@ timer_sleep (int64_t ticks)
 {
   int64_t start = timer_ticks ();
 
+  ASSERT (intr_get_level () == INTR_ON);
+
+  struct thread *curr_t = thread_current();
+
+  /* Calculate absolute wakeup time and insert into thread information */
+//  curr_t->wakeup_ticks = start + ticks; 
+
+  /* Initialize semaphore */
+//  sema_init( &curr_t->sleeping_sema, 0 );
+
+  /* Add to sleeping_threads */
+//  list_insert_ordered (&sleeping_threads, &(curr_t->time_elem), &compare_wakeup_ticks, NULL);
+
+  /* Call sema down to put thread to sleep */
+//  sema_down( &curr_t->sleeping_sema );
+
+  // TODO
   ASSERT (intr_get_level () == INTR_ON);
   while (timer_elapsed (start) < ticks) 
     thread_yield ();
@@ -170,7 +194,28 @@ timer_print_stats (void)
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
+printf("timer_interrupt.\n"); //TODO
   ticks++;
+
+  /* If Timer elapsed of the first thread matches the number of timer ticks that the thread would sleep for, then wake it.*/
+//  if(!list_empty(&sleeping_threads))
+//    {
+//    struct thread *first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
+
+    /* Test all threads that have the same wakeup_ticks */
+//    while( ticks >= first_sleeping_thread->wakeup_ticks )
+//      {
+//      sema_up( &first_sleeping_thread->sleeping_sema );
+//      list_pop_front( &sleeping_threads );
+
+      /* break out if no more threads in list */
+//      if( list_empty(&sleeping_threads) )
+//        break;
+//      else
+//        first_sleeping_thread = list_entry( list_front(&sleeping_threads), struct thread, time_elem);
+//      }
+//    }
+
   thread_tick ();
 }
 
@@ -244,3 +289,6 @@ real_time_delay (int64_t num, int32_t denom)
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
+
+
+
