@@ -217,12 +217,12 @@ lock_acquire (struct lock *lock)
        current threads priority, and the donation depth is not too great. */
     if( lock_holder != NULL )
     {
-
       curr_t->depth_of_donation = 0;
       curr_t->waiting_lock = lock;
       curr_t->depth_of_donation++;
 
       thread_donate_priority_chain( curr_t, lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );
+     
       sema_down(&lock->semaphore);
 
       thread_recall_priority_chain( curr_t, lock->holder, curr_t->donated_priority, curr_t->depth_of_donation );

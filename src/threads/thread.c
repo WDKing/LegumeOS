@@ -153,69 +153,71 @@ thread_tick (void)
     kernel_ticks++;
 
 
-//  /* Multi-Level Feedback Queue Scheduler */
-//  if(thread_mlfqs == true)
-//  {
-//    /* every single inturrupt, increment the recent_cpu_time value of the running thread.
-//       But not if it's the idle thread. 
-//       recent_cpu_time++   */
-//    if(t != idle_thread)
-//    {
-//       t->recent_cpu_time = add_fp_int( t->recent_cpu_time, 1 );
-//    }
+  /* Multi-Level Feedback Queue Scheduler */
+  if(thread_mlfqs == true)
+  {
+    /* every single inturrupt, increment the recent_cpu_time value of the running thread.
+       But not if it's the idle thread. 
+       recent_cpu_time++   */
+    if(t != idle_thread)
+    {
+       t->recent_cpu_time = add_fp_int( t->recent_cpu_time, 1 );
+    }
 
     /* Every fourth tick, recalculate the priority of every thread in the ready queue
        priority = PRI_MAX - (recent_cpu_time / 4) - (thread_nice * 2)  */
-//    if(timer_ticks() % 4 == 0)
-//    {
-//    struct list_elem *list_parser;
-    
-//    for(list_parser = list_begin(&all_list); 
-//        list_parser !=list_end(&all_list); 
-//        list_parser = list_next(list_parser))
-//    {
-//      struct thread *updating_thread = list_entry( list_parser, struct thread, allelem );
+    if(timer_ticks() % 4 == 0)
+    {
+//printf("thread_tick, 4 ticks.\n"); //TODO
+    struct list_elem *list_parser;
+   
+    for(list_parser = list_begin(&all_list); 
+        list_parser !=list_end(&all_list); 
+        list_parser = list_next(list_parser))
+    {
+      struct thread *updating_thread = list_entry( list_parser, struct thread, allelem );
 
-//      updating_thread->priority = calculate_mlfps_priority( updating_thread );
+      updating_thread->priority = calculate_mlfps_priority( updating_thread );
 
-//      }//End for - through all_list, updating priority on each
-//    }//End if - code every 4 ticks
+      }//End for - through all_list, updating priority on each
+    }//End if - code every 4 ticks
 
     /* Check every 1 second */
-//    if(timer_ticks() % TIMER_FREQ == 0)
-//    {
+    if(timer_ticks() % TIMER_FREQ == 0)
+    {
+//printf("thread_tick, every_second.\n"); //TODO
       /* Once per second, re-calculate load_avg 
          load_avg = (59/60)*load_avg + (1/60)*ready_threads */
-//      int num_of_running_threads = 0,
-//           coefficient_of_recent_cpu;
+      int num_of_running_threads = 0,
+           coefficient_of_recent_cpu;
 
-//      struct list_elem *list_parser;
+      struct list_elem *list_parser;
 
-//      if(t != idle_thread)
-//        num_of_running_threads = 1;
+      if(t != idle_thread)
+        num_of_running_threads = 1;
 
       /* Calculate new load_avg */
-//      load_avg = add_fp( divide_fp_int( multiply_fp_int(load_avg, 59), 60 ), divide_fp_int( convert_to_fp( list_size(&ready_list) + num_of_running_threads ), 60 ) );
+      load_avg = add_fp( divide_fp_int( multiply_fp_int(load_avg, 59), 60 ), divide_fp_int( convert_to_fp( list_size(&ready_list) + num_of_running_threads ), 60 ) );
 
       /* Once per second, re-calculate recent_cpu_time of the current thread 
          (not idle thread) (can be negative because of negative nice value)
          recent_cpu_time = (2 * load_avg) / ((2 * load_avg)+1) * recent_cpu_time + thread_nice  */
-//      coefficient_of_recent_cpu = divide_fp( multiply_fp_int(load_avg, 2), add_fp_int( multiply_fp_int(load_avg, 2), 1) );
+      coefficient_of_recent_cpu = divide_fp( multiply_fp_int(load_avg, 2), add_fp_int( multiply_fp_int(load_avg, 2), 1) );
 
-//      for(list_parser = list_begin(&all_list); 
-//          list_parser !=list_end(&all_list); 
-//          list_parser = list_next(list_parser))
-//      {
-//        struct thread *updating_thread = list_entry( list_parser, struct thread, allelem );
+      for(list_parser = list_begin(&all_list); 
+          list_parser !=list_end(&all_list); 
+          list_parser = list_next(list_parser))
+      {
+        struct thread *updating_thread = list_entry( list_parser, struct thread, allelem );
 
-//        updating_thread->recent_cpu_time = add_fp_int( 
-//                                           multiply_fp( coefficient_of_recent_cpu, updating_thread->recent_cpu_time ),
-//                                           updating_thread->thread_nice );
-//      }//End for - through all_list, updating recent_cpu_time on each
+        updating_thread->recent_cpu_time = add_fp_int( 
+                                           multiply_fp( coefficient_of_recent_cpu, updating_thread->recent_cpu_time ),
+                                           updating_thread->thread_nice );
+      }//End for - through all_list, updating recent_cpu_time on each
 
-//    }//End if - code every second
+    }//End if - code every second
 
-//  }//End if - Multi-Level Feedback Queue Scheduler
+   }//End if - Multi-Level Feedback Queue Scheduler
   
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
@@ -286,10 +288,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (thread_new);
 
-////  if( thread_get_priority() < (list_entry( list_front(&ready_list), struct thread, elem)->priority) )
-////  {  
-//    thread_yield();
-//  }
+  /* Check to see if the thread needs to yield */
+  priority_check_running_vs_ready();  
 
   return tid;
 }
@@ -482,7 +482,7 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-//  return convert_to_int_round_nearest( multiply_fp_int(load_avg, 100) );
+  return convert_to_int_round_nearest( multiply_fp_int(load_avg, 100) );
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -818,7 +818,7 @@ void priority_check_running_vs_ready(void)
   intr_set_level (old_level);
 }
 
-/* Calculate new priority for the mlfps scheduler */
+/* Calculate new priority for the mlfqs scheduler */
 int calculate_mlfps_priority(struct thread *priority_t)
 {
   int calc_priority;

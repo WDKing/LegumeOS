@@ -124,6 +124,10 @@ struct thread
     struct lock *waiting_lock;                  /* Lock to wait for */
     /* Thread this thread donated to */
     struct thread *donated_thread;       /* Thread donated to */
+    /* List of threads who have donated to this thread */
+    struct list *doner_list
+    /* element to be placed on doner_list */
+    struct list_elem doner_elem
 
     /* Multi-Level Feedback Queue Scheduler */
     /* Thread's nice value */
