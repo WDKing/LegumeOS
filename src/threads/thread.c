@@ -481,7 +481,7 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int new_nice UNUSED) 
+thread_set_nice (int new_nice) 
 {
   struct thread *curr_t = thread_current();
 
@@ -516,7 +516,7 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  return thread_current()->recent_cpu_time;
+  return convert_to_int_round_nearest( thread_current()->recent_cpu_time * 100) ;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
